@@ -1,0 +1,244 @@
+##Problem 1
+
+d = tuple(
+    x for x in range(1, 120)
+    if x % 12 == 6
+    if x * x <= 12345
+)
+print(d)
+
+
+
+
+
+## Problem 2
+
+def rotate_matrix(matrix, direction):
+    if direction == 'right': 
+        return [list(row) for row in zip(*matrix[::-1])]
+    elif direction == 'left': 
+        return [list(row) for row in zip(*matrix)][::-1]
+    else:
+        raise ValueError("Direction must be 'left' or 'right'")
+
+
+
+
+
+## Problem 3
+char_count = lambda s: {ch: s.count(ch) for ch in set(s)}
+
+
+
+
+## Problem 4
+
+
+from datetime import datetime
+
+#%%
+
+class Book:
+    def __init__(self, title, author, year, isbn, copies=1):
+        self.title = title
+        self.author = author
+        self.year = year
+        self.isbn = isbn.replace("-", "").replace(" ", "")  # normalize
+        self.total_copies = max(1, copies)
+        self.available_copies = self.total_copies
+        print(f"Book created: {self.title} ({self.isbn})")
+
+    def get_info(self):
+        return (f"{self.title} by {self.author} ({self.year}) | "
+                f"ISBN: {self.isbn} | Available: {self.available_copies}/{self.total_copies}")
+
+    def borrow(self):
+        if self.available_copies > 0:
+            self.available_copies -= 1
+            return True
+        print(f"No available copies of '{self.title}'")
+        return False
+
+    def return_book(self):
+        if self.available_copies < self.total_copies:
+            self.available_copies += 1
+            return True
+        print(f"Cannot return more copies than total for '{self.title}'")
+        return False
+
+
+class User:
+    def __init__(self, name, card_number):
+        self.name = name
+        self.card_number = card_number
+        self.borrowed_books = []          # list of Book objects
+        print(f"User registered: {self.name} ({self.card_number})")
+
+    def borrow_book(self, book):
+        if book.borrow():
+            self.borrowed_books.append(book)
+            return True
+        return False
+
+    def return_book(self, book):
+        if book in self.borrowed_books:
+            if book.return_book():
+                self.borrowed_books.remove(book)
+                return True
+        print(f"{self.name} does not have '{book.title}' to return")
+        return False
+
+    def list_borrowed_books(self):
+        if not self.borrowed_books:
+            return ["No books currently borrowed."]
+        return [b.get_info() for b in self.borrowed_books]
+
+
+class Library:
+    def __init__(self):
+        self.books = []
+        self.users = []
+        self.transaction_history = []
+        print("Library system initialized")
+
+    def add_book(self, book):
+        self.books.append(book)
+
+    def remove_book(self, isbn):
+        isbn_clean = isbn.replace("-", "").replace(" ", "")
+        for i, book in enumerate(self.books):
+            if book.isbn == isbn_clean:
+                removed = self.books.pop(i)
+                self._log("Book removed", None, removed)
+                return True
+        print(f"Book with ISBN {isbn} not found")
+        return False
+
+    def register_user(self, user):
+        # Simple duplicate check
+        if any(u.card_number == user.card_number for u in self.users):
+            print(f"Card number {user.card_number} already registered")
+            return False
+        self.users.append(user)
+        self._log("User registered", user, None)
+        return True
+
+    def remove_user(self, card_number):
+        for i, user in enumerate(self.users):
+            if user.card_number == card_number:
+                if user.borrowed_books:
+                    print(f"Warning: {user.name} still has {len(user.borrowed_books)} book(s)!")
+                removed = self.users.pop(i)
+                self._log("User removed", removed, None)
+                return True
+        print(f"User with card {card_number} not found")
+        return False
+
+    def issue_book(self, card_number, isbn):
+        user = self._find_user(card_number)
+        book = self._find_book(isbn)
+
+        if not user:
+            print(f"User {card_number} not found")
+            return False
+        if not book:
+            print(f"Book {isbn} not found")
+            return False
+
+        if user.borrow_book(book):
+            self._log("Book issued", user, book)
+            print(f"→ {user.name} borrowed '{book.title}'")
+            return True
+        return False
+
+    def return_book(self, card_number, isbn):
+        user = self._find_user(card_number)
+        book = self._find_book(isbn)
+
+        if not user or not book:
+            print("User or book not found")
+            return False
+
+        if user.return_book(book):
+            self._log("Book returned", user, book)
+            print(f"← {user.name} returned '{book.title}'")
+            return True
+        return False
+
+    def _find_book(self, isbn):
+        isbn_clean = isbn.replace("-", "").replace(" ", "")
+        for book in self.books:
+            if book.isbn == isbn_clean:
+                return book
+        return None
+
+    def _find_user(self, card_number):
+        for user in self.users:
+            if user.card_number == card_number:
+                return user
+        return None
+
+    def _log(self, action, user, book):
+        entry = {
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "action": action,
+            "user": user.name if user else None,
+            "card": user.card_number if user else None,
+            "title": book.title if book else None,
+            "isbn": book.isbn if book else None
+        }
+        self.transaction_history.append(entry)
+
+    def display_history(self):
+        if not self.transaction_history:
+            print("No transactions recorded yet.")
+            return
+
+        print("\nLibrary Transaction History:")
+        print("-" * 65)
+        for entry in self.transaction_history:
+            time = entry["time"]
+            action = entry["action"]
+            who = f"{entry['user']} ({entry['card']})" if entry["user"] else "System"
+            what = f"'{entry['title']}' ({entry['isbn']})" if entry["title"] else ""
+            print(f"{time} | {action:12} | {who:20} | {what}")
+        print("-" * 65)
+
+
+if __name__ == "__main__":
+    library = Library()
+
+
+    book1 = Book("The Hobbit", "J.R.R. Tolkien", 1937, "978-0547928227", 3)
+    book2 = Book("1984", "George Orwell", 1949, "978-0451524935", 2)
+    book3 = Book("Clean Code", "Robert C. Martin", 2008, "978-0132350884", 1)
+
+    library.add_book(book1)
+    library.add_book(book2)
+    library.add_book(book3)
+
+
+    user1 = User("Anna Kowalska", "LIB-1001")
+    user2 = User("Jan Nowak", "LIB-1002")
+
+    library.register_user(user1)
+    library.register_user(user2)
+
+
+    library.issue_book("LIB-1001", "978-0547928227")
+    library.issue_book("LIB-1002", "978-0547928227")
+    library.issue_book("LIB-1001", "978-0451524935")
+    library.issue_book("LIB-1001", "978-0132350884")
+    library.issue_book("LIB-1002", "978-0132350884")
+
+    library.return_book("LIB-1001", "978-0132350884")
+    library.return_book("LIB-1002", "978-0547928227")
+
+
+    print("\nAnna's borrowed books:")
+    for info in user1.list_borrowed_books():
+        print("  " + info)
+
+    print("\nJan's borrowed books:")
+    for info in user2.list_borrowed_books():
+        print("  " + info)
